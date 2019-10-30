@@ -6,7 +6,7 @@ local TrieMap = {}
 TrieMap.__index = TrieMap
 
 ------------------------------------------
--- Public methods
+-- Constructor
 ------------------------------------------
 
 -- Creates a new trie map
@@ -16,6 +16,10 @@ function TrieMap.new()
   self.size = 0
   return self
 end
+
+------------------------------------------
+-- Public methods
+------------------------------------------
 
 -- Returns an iterator over all values with an optional prefix
 function TrieMap:iter(prefix)
