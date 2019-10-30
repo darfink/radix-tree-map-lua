@@ -4,7 +4,7 @@ This is a radix tree implemented in Lua.
 
 ## API
 
-- `TrieMap:new()`  
+- `TrieMap.new()`  
   Creates an empty trie.
 
 - `TrieMap:iter([prefix])`  
