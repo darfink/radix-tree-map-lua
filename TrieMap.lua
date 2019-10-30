@@ -39,57 +39,76 @@ function TrieMap:iter(prefix)
 end
 
 -- Returns a key's value
-function TrieMap:get(label)
-  local node, isExactMatch = self:_find_closest_node(label)
+function TrieMap:get(key)
+  local node, isExactMatch = self:_find_closest_node(key)
   return isExactMatch and node.value or nil
 end
 
 -- Inserts or replaces a key and its value (any previous value is returned)
-function TrieMap:insert(label, value)
-  assert(type(label) == 'string' and label:len() > 0)
+function TrieMap:insert(key, value)
+  assert(type(key) == 'string' and key:len() > 0)
+  assert(value ~= nil)
 
-  local removeNode = value == nil
-  local closestNode, isExactMatch, parentNode, sharedPrefixLength, sharedLabelLength, nodeIndex =
-    self:_find_closest_node(label)
+  local closestNode, isExactMatch, parentNode, ancestorLength, prefixLength, closestNodeIndex =
+    self:_find_closest_node(key)
 
   if isExactMatch then
     local oldValue = closestNode.value
-
-    if removeNode then
-      self:_remove_node(closestNode, parentNode, nodeIndex)
-    else
-      closestNode.value = value
-    end
-
+    closestNode.value = value
     return oldValue
-  elseif removeNode then
-    return
   end
 
-  if parentNode.children == nil then
-    parentNode.children = {}
-  end
 
   local nodeToInsert = {
-    label = label:sub(sharedPrefixLength + sharedLabelLength + 1),
+    label = key:sub(ancestorLength + prefixLength + 1),
     value = value,
   }
+
+  parentNode.children = parentNode.children or {}
 
   if not closestNode then
     table.insert(parentNode.children, nodeToInsert)
   else
-    closestNode.label = closestNode.label:sub(sharedLabelLength + 1)
-    parentNode.children[nodeIndex] = {
-      label = label:sub(sharedPrefixLength + 1, sharedPrefixLength + sharedLabelLength),
+    closestNode.label = closestNode.label:sub(prefixLength + 1)
+    parentNode.children[closestNodeIndex] = {
+      label = key:sub(ancestorLength + 1, ancestorLength + prefixLength),
       children = { closestNode, nodeToInsert },
     }
   end
+
   self.size = self.size + 1
 end
 
 -- Removes a key and its value
-function TrieMap:remove(label)
-  return self:insert(label, nil)
+function TrieMap:remove(key)
+  assert(type(key) == 'string' and key:len() > 0)
+
+  local closestNode, isExactMatch, parentNode, _, _, closestNodeIndex =
+    self:_find_closest_node(key)
+
+  if not isExactMatch then
+    return
+  end
+
+  if closestNode.children ~= nil then
+    for index in closestNode.children do
+      local childNode = closestNode.children[index]
+      childNode.label = closestNode.label .. childNode.label
+      parentNode.children[#parentNode.children] = childNode
+    end
+  end
+
+  table.remove(parentNode.children, closestNodeIndex)
+
+  if #parentNode.children == 1 and not parentNode.value then
+    local childNode = parentNode.children[1]
+    parentNode.label = parentNode.label .. childNode.label
+    parentNode.value = childNode.value
+    parentNode.children = childNode.children
+  end
+
+  self.size = self.size - 1
+  return closestNode.value
 end
 
 -- Returns the number of entries
@@ -107,29 +126,32 @@ end
 ------------------------------------------
 
 function TrieMap:_find_closest_node(label)
-  local traverseNode = self.root
-  local sharedPrefixLength = 0
   local labelLength = string.len(label or '')
 
-  while sharedPrefixLength < labelLength do
-    local childNode, isExactMatch, sharedLabelLength, childIndex =
-      self:_get_child_node_with_lcp(traverseNode, label:sub(sharedPrefixLength + 1))
-
-    if isExactMatch == false then
-      return childNode, false, traverseNode, sharedPrefixLength, sharedLabelLength, childIndex
-    end
-
-    sharedPrefixLength = sharedPrefixLength + childNode.label:len()
-    traverseNode = childNode
+  if labelLength == 0 then
+    return self.root, true, nil, 0, 0, nil
   end
 
-  return traverseNode, true
+  local ancestorLength = 0
+  local traverseNode = self.root
+
+  while true do
+    local childNode, isExactMatch, prefixLength, childIndex =
+      self:_find_child_node_with_lcp(traverseNode, label:sub(ancestorLength + 1))
+
+    if not isExactMatch or ancestorLength + childNode.label:len() >= labelLength then
+      return childNode, isExactMatch, traverseNode, ancestorLength, prefixLength, childIndex
+    end
+
+    ancestorLength = ancestorLength + childNode.label:len()
+    traverseNode = childNode
+  end
 end
 
 -- Returns the child node with the longest common prefix (LCP)
-function TrieMap:_get_child_node_with_lcp(parentNode, label)
+function TrieMap:_find_child_node_with_lcp(parentNode, label)
   local isExactMatch = false
-  local sharedPrefixLength = 0
+  local prefixLength = 0
   local closestChild = nil
   local childIndex = nil
 
@@ -145,7 +167,7 @@ function TrieMap:_get_child_node_with_lcp(parentNode, label)
 
       if i > 0 then
         closestChild = childNode
-        sharedPrefixLength = i
+        prefixLength = i
         isExactMatch = i == #childNode.label
         childIndex = nodeIndex
         break
@@ -153,26 +175,11 @@ function TrieMap:_get_child_node_with_lcp(parentNode, label)
     end
   end
 
-  return closestChild, isExactMatch, sharedPrefixLength, childIndex
+  return closestChild, isExactMatch, prefixLength, childIndex
 end
 
-function TrieMap:_remove_node(node, parentNode, nodeIndex)
-  if node.children ~= nil then
-    for index in node.children do
-      local childNode = node.children[index]
-      childNode.label = node.label .. childNode.label
-      parentNode.children[#parentNode.children] = childNode
-    end
-  end
-
-  table.remove(parentNode.children, nodeIndex)
-
-  if #parentNode.children == 1 and not parentNode.value then
-    local childNode = parentNode.children[0]
-    parentNode.label = parentNode.label .. childNode.label
-    parentNode.value = childNode.value
-    parentNode.children = childNode.children
-  end
-end
+------------------------------------------
+-- Exports
+------------------------------------------
 
 return { new = TrieMap.new }

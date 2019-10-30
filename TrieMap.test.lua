@@ -1,4 +1,4 @@
-local TrieMap = require "TrieMap"
+local TrieMap = require 'TrieMap'
 
 function sample_trie()
   local trie = TrieMap.new()
@@ -25,6 +25,7 @@ describe('TrieMap', function()
 
   it('should be possible to insert values', function()
     local trie = sample_trie()
+    assert.same(trie:get('foocar'), 2)
     assert.falsy(trie:is_empty())
     assert.same(trie:len(), 3)
   end)
@@ -34,6 +35,21 @@ describe('TrieMap', function()
     assert.same(trie:insert('foocar', 4), 2)
     assert.same(trie:get('foocar'), 4)
     assert.same(trie:len(), 3)
+  end)
+
+  it('should be possible to remove keys', function()
+    local trie = TrieMap.new()
+    trie:insert('test', 1)
+    trie:insert('team', 2)
+    trie:insert('toast', 3)
+
+    assert.same(trie:remove('toast'), 3)
+    assert.same(trie:get('toast'), nil)
+    assert.same(trie:len(), 2)
+
+    trie:remove('team')
+    trie:remove('test')
+    assert.truthy(trie:is_empty())
   end)
 
   it('should be possible to iterate without a prefix', function()
