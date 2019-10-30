@@ -20,6 +20,7 @@ describe('TrieMap', function()
   it('should be empty when created', function()
     local trie = TrieMap.new()
     assert.truthy(trie:is_empty())
+    assert.same(trie:get(), nil)
     assert.same(trie:len(), 0)
   end)
 
@@ -52,22 +53,31 @@ describe('TrieMap', function()
     assert.truthy(trie:is_empty())
   end)
 
-  it('should be possible to iterate without a prefix', function()
+  it('should be possible to iterate values without a prefix', function()
     local trie = sample_trie()
     local index = 1
-    for value in trie:iter() do
+    for value in trie:values() do
       assert.same(value, index)
       index = index + 1
     end
   end)
 
-  it('should be possible to iterate with a prefix', function()
+  it('should be possible to iterate values with a prefix', function()
     local trie = sample_trie()
     trie:insert('barcaz', 4)
     trie:insert('barfoo', 5)
     trie:insert('barcar', 6)
 
-    local entries = iter_to_array(trie:iter('barca'))
-    assert.same(entries, {4, 6})
+    local values = iter_to_array(trie:values('barca'))
+    assert.same(values, {4, 6})
+  end)
+
+  it('should store keys in lexicographic order', function()
+    local trie = TrieMap.new()
+    trie:insert('z', 1)
+    trie:insert('a', 2)
+
+    local keys = iter_to_array(trie:keys())
+    assert.same(keys, {'a', 'z'})
   end)
 end)

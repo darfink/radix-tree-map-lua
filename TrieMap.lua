@@ -21,24 +21,33 @@ end
 -- Public methods
 ------------------------------------------
 
--- Returns an iterator over all values with an optional prefix
-function TrieMap:iter(prefix)
-  local function visit_node(node)
-    if not node then return end
-
-    if node.value then
-      coroutine.yield(node.value)
-    end
-
-    if node.children then
-      for index in ipairs(node.children) do
-        visit_node(node.children[index])
-      end
-    end
-  end
-
+-- Returns an iterator over entries keys with an optional prefix
+function TrieMap:entries(prefix)
   return coroutine.wrap(function()
-    visit_node(self:_find_closest_node(prefix))
+    local startNode = self:_find_closest_node(prefix)
+    self:_visit_node_recurse(startNode, function(node, prefixes)
+      return table.concat(prefixes), node.value
+    end)
+  end)
+end
+
+-- Returns an iterator over all keys with an optional prefix
+function TrieMap:keys(prefix)
+  return coroutine.wrap(function()
+    local startNode = self:_find_closest_node(prefix)
+    self:_visit_node_recurse(startNode, function(node, prefixes)
+      return table.concat(prefixes)
+    end)
+  end)
+end
+
+-- Returns an iterator over all values with an optional prefix
+function TrieMap:values(prefix)
+  return coroutine.wrap(function()
+    local startNode = self:_find_closest_node(prefix)
+    self:_visit_node_recurse(startNode, function(node, prefixes)
+      return node.value
+    end)
   end)
 end
 
@@ -62,7 +71,6 @@ function TrieMap:insert(key, value)
     return oldValue
   end
 
-
   local nodeToInsert = {
     label = key:sub(ancestorLength + prefixLength + 1),
     value = value,
@@ -80,6 +88,8 @@ function TrieMap:insert(key, value)
     }
   end
 
+  -- FIXME: This is very inefficient, a correct insertion index should be used instead
+  table.sort(parentNode.children, function(a, b) return a.label < b.label end)
   self.size = self.size + 1
 end
 
@@ -113,6 +123,11 @@ function TrieMap:remove(key)
 
   self.size = self.size - 1
   return closestNode.value
+end
+
+-- Returns whether the key exists or not
+function TrieMap:has(key)
+  return self:get(key) ~= nil
 end
 
 -- Returns the number of entries
@@ -160,6 +175,7 @@ function TrieMap:_find_child_node_with_lcp(parentNode, label)
   local childIndex = nil
 
   if parentNode.children ~= nil then
+    -- TODO: Binary search could be used instead
     for nodeIndex in ipairs(parentNode.children) do
       local childNode = parentNode.children[nodeIndex]
       local minLength = math.min(#label, #childNode.label)
@@ -180,6 +196,26 @@ function TrieMap:_find_child_node_with_lcp(parentNode, label)
   end
 
   return closestChild, isExactMatch, prefixLength, childIndex
+end
+
+function TrieMap:_visit_node_recurse(node, transform, prefixes)
+  if not node then return end
+
+  prefixes = prefixes or {}
+  prefixes[#prefixes + 1] = node.label
+
+  if node.value then
+    coroutine.yield(transform(node, prefixes))
+  end
+
+  if node.children then
+    for index in ipairs(node.children) do
+      local childNode = node.children[index]
+      self:_visit_node_recurse(childNode, transform, prefixes)
+    end
+  end
+
+  prefixes[#prefixes] = nil
 end
 
 ------------------------------------------
