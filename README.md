@@ -8,13 +8,13 @@ A radix tree implemented in Lua.
   Creates an empty trie.
 
 - `TrieMap:entries([prefix])`  
-  Returns an iterator over all entries in the trie, with an optional prefix.
+  Returns an iterator over all entries in the trie, filtered with an optional prefix.
 
 - `TrieMap:keys([prefix])`  
-  Returns an iterator over all keys in the trie, with an optional prefix.
+  Returns an iterator over all keys in the trie, filtered with an optional prefix.
 
 - `TrieMap:values([prefix])`  
-  Returns an iterator over all values in the trie, with an optional prefix.
+  Returns an iterator over all values in the trie, filtered with an optional prefix.
 
 - `TrieMap:get(key)`  
   Retrieves a key's value from the trie, or `nil` if it doesn't exist.
@@ -30,8 +30,8 @@ A radix tree implemented in Lua.
   Removes an entry from the trie and returns the value, or `nil` if it doesn't exist.
 
 - `TrieMap:nodes()`  
-  Returns the number of nodes used for representing the tree.  
-  **NOTE**: This is mostly useful for unit tests.
+  Returns the number of internal nodes used for representing the tree.  
+  **NOTE**: This is mostly used for unit tests.
 
 - `TrieMap:len()`  
   Returns the number of entries in the trie.
@@ -62,10 +62,10 @@ end
 
 ## Remarks
 
-The keys are stored in lexicographic order. To mirror the behavior with
-tables, `nil` values are not allowed. To save memory, edges are not
-represented in the tree, instead intermediate nodes are used (if they lack a
-`value` field they are only auxiliary).
+The keys are stored in lexicographic order. To mirror the behavior with tables,
+`nil` values are not allowed. To save memory edges are not represented in the
+tree, instead intermediate nodes are used (if they lack a `value` field they
+are only auxiliary).
 
 ## Sources
 

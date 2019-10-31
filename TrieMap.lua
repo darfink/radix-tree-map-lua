@@ -92,7 +92,7 @@ function TrieMap:insert(key, value)
     closestNode.label = closestNode.label:sub(prefixLength + 1)
 
     if keySuffix:len() == 0 then
-      -- The key is a complete prefix of the closest node, therefore it becomes the intermediate
+      -- The key is a complete prefix of the closest node, therefore it becomes an intermediate
       parentNode.children[closestNodeIndex] = {
         label = sharedPrefix,
         value = value,
@@ -132,13 +132,13 @@ function TrieMap:remove(key)
       -- Merge the removed node with its sole child
       self:_merge_nodes(closestNode, closestNode.children[1])
     else
-      -- Remove the node's value to indicate it's an intermediate
+      -- Remove the node's value to indicate it's only auxiliary
       closestNode.value = nil
     end
   else
     table.remove(parentNode.children, closestNodeIndex)
     if #parentNode.children == 1 and not parentNode.value then
-      -- Merge the intermediate parent with it's only remaining child
+      -- Merge the auxiliary parent with it's only remaining child
       self:_merge_nodes(parentNode, parentNode.children[1])
     end
   end
