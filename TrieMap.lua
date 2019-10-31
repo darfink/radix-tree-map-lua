@@ -125,25 +125,26 @@ function TrieMap:remove(key)
     return
   end
 
+  local oldValue = closestNode.value
+
   if closestNode.children ~= nil then
-    for index in closestNode.children do
-      local childNode = closestNode.children[index]
-      childNode.label = closestNode.label .. childNode.label
-      parentNode.children[#parentNode.children] = childNode
+    if #closestNode.children == 1 then
+      -- Merge the removed node with its sole child
+      self:_merge_nodes(closestNode, closestNode.children[1])
+    else
+      -- Remove the node's value to indicate it's an intermediate
+      closestNode.value = nil
+    end
+  else
+    table.remove(parentNode.children, closestNodeIndex)
+    if #parentNode.children == 1 and not parentNode.value then
+      -- Merge the intermediate parent with it's only remaining child
+      self:_merge_nodes(parentNode, parentNode.children[1])
     end
   end
 
-  table.remove(parentNode.children, closestNodeIndex)
-
-  if #parentNode.children == 1 and not parentNode.value then
-    local childNode = parentNode.children[1]
-    parentNode.label = parentNode.label .. childNode.label
-    parentNode.value = childNode.value
-    parentNode.children = childNode.children
-  end
-
   self.size = self.size - 1
-  return closestNode.value
+  return oldValue
 end
 
 -- Returns whether the key exists or not
@@ -237,6 +238,12 @@ function TrieMap:_visit_node_recurse(node, transform, prefixes)
   end
 
   prefixes[#prefixes] = nil
+end
+
+function TrieMap:_merge_nodes(parentNode, childNode)
+  parentNode.label = parentNode.label .. childNode.label
+  parentNode.value = childNode.value
+  parentNode.children = childNode.children
 end
 
 ------------------------------------------
