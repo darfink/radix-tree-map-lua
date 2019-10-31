@@ -152,6 +152,23 @@ function TrieMap:has(key)
   return self:get(key) ~= nil
 end
 
+-- Returns the number of nodes (including root)
+function TrieMap:nodes()
+  local function count_node_recurse(node)
+    local sum = node and 1 or 0
+
+    if node and node.children then
+      for index in ipairs(node.children) do
+        sum = sum + count_node_recurse(node.children[index])
+      end
+    end
+
+    return sum
+  end
+
+  return count_node_recurse(self.root)
+end
+
 -- Returns the number of entries
 function TrieMap:len()
   return self.size
