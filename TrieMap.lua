@@ -77,25 +77,40 @@ function TrieMap:insert(key, value)
     return oldValue
   end
 
-  local nodeToInsert = {
-    label = key:sub(ancestorLength + prefixLength + 1),
-    value = value,
-  }
-
   parentNode.children = parentNode.children or {}
+  local keySuffix = key:sub(ancestorLength + prefixLength + 1)
 
   if not closestNode then
-    table.insert(parentNode.children, nodeToInsert)
+    local i = 1
+    while parentNode.children[i] and keySuffix > parentNode.children[i].label do i = i + 1 end
+
+    -- No children share a prefix with the key, so insert it in lexicographic order
+    table.insert(parentNode.children, i, { label = keySuffix, value = value })
   else
+    -- Determine the shared prefix of the key and the closest node's label
+    local sharedPrefix = key:sub(ancestorLength + 1, ancestorLength + prefixLength)
     closestNode.label = closestNode.label:sub(prefixLength + 1)
-    parentNode.children[closestNodeIndex] = {
-      label = key:sub(ancestorLength + 1, ancestorLength + prefixLength),
-      children = { closestNode, nodeToInsert },
-    }
+
+    if keySuffix:len() == 0 then
+      -- The key is a complete prefix of the closest node, therefore it becomes the intermediate
+      parentNode.children[closestNodeIndex] = {
+        label = sharedPrefix,
+        value = value,
+        children = { closestNode }
+      }
+    else
+      local nodeToInsert = { label = keySuffix, value = value }
+
+      -- Insert an intermediate for the shared prefix of the key and the closest node
+      parentNode.children[closestNodeIndex] = {
+        label = sharedPrefix,
+        children = closestNode.label < nodeToInsert.label
+          and { closestNode, nodeToInsert }
+          or { nodeToInsert, closestNode }
+      }
+    end
   end
 
-  -- FIXME: This is very inefficient, a correct insertion index should be used instead
-  table.sort(parentNode.children, function(a, b) return a.label < b.label end)
   self.size = self.size + 1
 end
 
