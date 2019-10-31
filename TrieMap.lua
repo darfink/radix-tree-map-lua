@@ -179,10 +179,17 @@ function TrieMap:is_empty()
   return self.size == 0
 end
 
+-- Clears the trie
+function TrieMap:clear()
+  self.root = {}
+  self.size = 0
+end
+
 ------------------------------------------
 -- Private methods
 ------------------------------------------
 
+-- Returns the node who's ancestors and own label matches the closest with the provided label
 function TrieMap:_find_closest_node(label)
   local labelLength = string.len(label or '')
 
@@ -214,7 +221,7 @@ function TrieMap:_find_child_node_with_lcp(parentNode, label)
   local childIndex = nil
 
   if parentNode.children ~= nil then
-    -- TODO: Binary search could be used instead
+    -- TODO: Binary search more efficient or not? (>100 elements)
     for nodeIndex in ipairs(parentNode.children) do
       local childNode = parentNode.children[nodeIndex]
       local minLength = math.min(#label, #childNode.label)
