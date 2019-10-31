@@ -68,6 +68,12 @@ function TrieMap:insert(key, value)
   if isExactMatch then
     local oldValue = closestNode.value
     closestNode.value = value
+
+    if oldValue == nil then
+      -- Update the size if the exact match was an intermediate node
+      self.size = self.size + 1
+    end
+
     return oldValue
   end
 
