@@ -24,8 +24,8 @@ end
 -- Returns an iterator over entries keys with an optional prefix
 function TrieMap:entries(prefix)
   return coroutine.wrap(function()
-    local startNode = self:_find_closest_node(prefix)
-    self:_visit_node_recurse(startNode, function(node, prefixes)
+    local node = self:_find_longest_prefix_match(prefix)
+    self:_visit_node_recurse(node, function(node, prefixes)
       return table.concat(prefixes), node.value
     end)
   end)
@@ -34,8 +34,8 @@ end
 -- Returns an iterator over all keys with an optional prefix
 function TrieMap:keys(prefix)
   return coroutine.wrap(function()
-    local startNode = self:_find_closest_node(prefix)
-    self:_visit_node_recurse(startNode, function(node, prefixes)
+    local node = self:_find_longest_prefix_match(prefix)
+    self:_visit_node_recurse(node, function(node, prefixes)
       return table.concat(prefixes)
     end)
   end)
@@ -44,8 +44,8 @@ end
 -- Returns an iterator over all values with an optional prefix
 function TrieMap:values(prefix)
   return coroutine.wrap(function()
-    local startNode = self:_find_closest_node(prefix)
-    self:_visit_node_recurse(startNode, function(node, prefixes)
+    local node = self:_find_longest_prefix_match(prefix)
+    self:_visit_node_recurse(node, function(node, prefixes)
       return node.value
     end)
   end)
@@ -53,7 +53,7 @@ end
 
 -- Returns a key's value
 function TrieMap:get(key)
-  local node, isExactMatch = self:_find_closest_node(key)
+  local node, isExactMatch = self:_find_longest_prefix_match(key)
   return isExactMatch and node.value or nil
 end
 
@@ -62,8 +62,8 @@ function TrieMap:insert(key, value)
   assert(type(key) == 'string' and key:len() > 0)
   assert(value ~= nil)
 
-  local closestNode, isExactMatch, parentNode, ancestorLength, prefixLength, closestNodeIndex =
-    self:_find_closest_node(key)
+  local closestNode, isExactMatch, parentNode, ancestorLength, labelLength, closestNodeIndex =
+    self:_find_longest_prefix_match(key)
 
   if isExactMatch then
     local oldValue = closestNode.value
@@ -78,7 +78,7 @@ function TrieMap:insert(key, value)
   end
 
   parentNode.children = parentNode.children or {}
-  local keySuffix = key:sub(ancestorLength + prefixLength + 1)
+  local keySuffix = key:sub(ancestorLength + labelLength + 1)
 
   if not closestNode then
     local i = 1
@@ -88,8 +88,8 @@ function TrieMap:insert(key, value)
     table.insert(parentNode.children, i, { label = keySuffix, value = value })
   else
     -- Determine the shared prefix of the key and the closest node's label
-    local sharedPrefix = key:sub(ancestorLength + 1, ancestorLength + prefixLength)
-    closestNode.label = closestNode.label:sub(prefixLength + 1)
+    local sharedPrefix = key:sub(ancestorLength + 1, ancestorLength + labelLength)
+    closestNode.label = closestNode.label:sub(labelLength + 1)
 
     if keySuffix:len() == 0 then
       -- The key is a complete prefix of the closest node, therefore it becomes an intermediate
@@ -101,7 +101,7 @@ function TrieMap:insert(key, value)
     else
       local nodeToInsert = { label = keySuffix, value = value }
 
-      -- Insert an intermediate for the shared prefix of the key and the closest node
+      -- Insert an auxiliary node for the shared prefix of the key and the closest node
       parentNode.children[closestNodeIndex] = {
         label = sharedPrefix,
         children = closestNode.label < nodeToInsert.label
@@ -119,7 +119,7 @@ function TrieMap:remove(key)
   assert(type(key) == 'string' and key:len() > 0)
 
   local closestNode, isExactMatch, parentNode, _, _, closestNodeIndex =
-    self:_find_closest_node(key)
+    self:_find_longest_prefix_match(key)
 
   if not isExactMatch then
     return
@@ -129,7 +129,7 @@ function TrieMap:remove(key)
 
   if closestNode.children ~= nil then
     if #closestNode.children == 1 then
-      -- Merge the removed node with its sole child
+      -- Remove the node by merging it with its sole child
       self:_merge_nodes(closestNode, closestNode.children[1])
     else
       -- Remove the node's value to indicate it's only auxiliary
@@ -189,11 +189,11 @@ end
 -- Private methods
 ------------------------------------------
 
--- Returns the node who's ancestors and own label matches the closest with the provided label
-function TrieMap:_find_closest_node(label)
-  local labelLength = string.len(label or '')
+-- Returns the node which the provided prefix matches
+function TrieMap:_find_longest_prefix_match(prefix)
+  local prefixLength = string.len(prefix or '')
 
-  if labelLength == 0 then
+  if prefixLength == 0 then
     return self.root, true, nil, 0, 0, nil
   end
 
@@ -201,11 +201,11 @@ function TrieMap:_find_closest_node(label)
   local traverseNode = self.root
 
   while true do
-    local childNode, isExactMatch, prefixLength, childIndex =
-      self:_find_child_node_with_lcp(traverseNode, label:sub(ancestorLength + 1))
+    local childNode, isExactMatch, labelLength, childIndex =
+      self:_find_child_node_with_lcp(traverseNode, prefix:sub(ancestorLength + 1))
 
-    if not isExactMatch or ancestorLength + childNode.label:len() >= labelLength then
-      return childNode, isExactMatch, traverseNode, ancestorLength, prefixLength, childIndex
+    if not isExactMatch or ancestorLength + childNode.label:len() >= prefixLength then
+      return childNode, isExactMatch, traverseNode, ancestorLength, labelLength, childIndex
     end
 
     ancestorLength = ancestorLength + childNode.label:len()
@@ -216,7 +216,7 @@ end
 -- Returns the child node with the longest common prefix (LCP)
 function TrieMap:_find_child_node_with_lcp(parentNode, label)
   local isExactMatch = false
-  local prefixLength = 0
+  local labelLength = 0
   local closestChild = nil
   local childIndex = nil
 
@@ -233,7 +233,7 @@ function TrieMap:_find_child_node_with_lcp(parentNode, label)
 
       if i > 0 then
         closestChild = childNode
-        prefixLength = i
+        labelLength = i
         isExactMatch = i == #childNode.label
         childIndex = nodeIndex
         break
@@ -241,7 +241,7 @@ function TrieMap:_find_child_node_with_lcp(parentNode, label)
     end
   end
 
-  return closestChild, isExactMatch, prefixLength, childIndex
+  return closestChild, isExactMatch, labelLength, childIndex
 end
 
 function TrieMap:_visit_node_recurse(node, transform, prefixes)
